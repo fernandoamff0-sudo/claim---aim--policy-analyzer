@@ -1,49 +1,109 @@
 # Cloud IAM Policy Analyzer
 
-A Python project for identifying broad permission patterns
-in AWS IAM policies.
+An offline Python command-line tool that reads a local AWS IAM policy JSON file
+and reports broad permission patterns for contextual review. No AWS account,
+credentials, network access, or third-party Python packages are required.
 
-## Project status
+## Requirements and quick start
 
-Under development.
+Python 3.10 or newer. From the repository root:
 
-## Objective
+```bash
+python3 analyzer.py examples/broad_policy.json
+python3 analyzer.py examples/pattern_policy.json --format json
+python3 analyzer.py examples/scoped_policy.json --fail-on-findings
+```
 
-Build an offline tool that reads an IAM policy from a JSON
-file and reports permission patterns that require review.
+The original example command also works, with the bundled broad policy as its default:
 
-## Planned features
+```bash
+python3 examples/analyzer.py
+```
 
-- Detect wildcard actions such as `Action: "*"`.
-- Detect action patterns such as `s3:*`.
-- Flag `Resource: "*"` for contextual review.
-- Generate readable reports.
-- Include sample policies and automated tests.
+Pass any local file path as the positional argument. Relative policy paths are
+resolved from your current working directory. Use `--help` for options.
+Files are read as UTF-8; input files are never modified.
 
-## Technologies
+## Findings
 
-- Python
-- JSON
-- Git and GitHub
-- AWS IAM concepts
+| Code | Pattern | Meaning |
+| --- | --- | --- |
+| `ACTION_ALL` | `Action: "*"` | All actions match; review scope. |
+| `ACTION_PATTERN` | `s3:*`, `iam:Get*`, or patterns containing `?` | Review the matching actions. |
+| `RESOURCE_ALL` | `Resource: "*"` | All applicable resources match; some actions require this value. |
+| `COMPLEMENT_REVIEW` | `NotAction` or `NotResource` | Review complement semantics manually. |
 
-## Scope
+Both strings and lists are supported for action and resource fields. `Statement`
+can be one object or a nonempty list. Reports identify statements by their
+one-based position, optional `Sid`, and `Effect`. Duplicate actions within a
+statement produce one finding per distinct action pattern.
 
-This educational tool will analyze local files.
-An AWS account and credentials will not be required.
+Example text output:
 
-Findings will identify patterns for review, not prove
-effective access or guarantee that a policy is secure.
+```text
+[ACTION_ALL] Statement 1 (BroadPermissions) | Allow
+  Action: *
+  Matches all actions; review the statement's scope.
+```
 
-## Learning goals
+JSON output has a `findings` array and a `notice`. Each finding includes
+`statement`, `sid`, `effect`, `code`, `field`, `pattern`, `message`, and
+`conditional`. The latter indicates a nonempty `Condition` object; conditions
+are not evaluated. Errors are written to stderr, without a partial report.
 
-- Understand IAM policy structure.
-- Practice the principle of least privilege.
-- Build and test a Python command-line tool.
-- Document security findings and limitations.
+## Exit codes
+
+- `0`: analysis succeeded; findings may exist.
+- `1`: analysis succeeded with findings when `--fail-on-findings` is set.
+- `2`: invalid arguments, unreadable file, invalid JSON, or unsupported input structure.
+
+For example, `python3 analyzer.py examples/broad_policy.json --fail-on-findings`
+returns `1`. A `Deny` pattern or complement review finding also counts toward
+this exit status; it does not mean a permission grant was found.
+
+## Scope and limitations
+
+This is an educational pattern reviewer, not a complete IAM validator or an
+AWS authorization simulator. A finding is a prompt for review, not proof of
+excessive access. No findings does not establish that a policy is secure.
+
+- `Allow` and `Deny` are reported separately; a broad deny is not a permission grant.
+- Conditions are preserved in the input but not evaluated.
+- `NotAction` and `NotResource` are flagged for manual review rather than
+  interpreted as positive action/resource lists.
+- Principal scope, resource ARN wildcard patterns, service-specific action
+  validity, policy versions, SCPs, permissions boundaries, session policies,
+  and interactions among policies are not evaluated.
+- Structural validation requires `Effect`, exactly one of `Action`/`NotAction`,
+  and exactly one of `Resource`/`NotResource`. Policies outside this supported
+  shape are rejected, even if valid in another IAM context.
+
+Use AWS documentation and appropriate authorization analysis tools for real
+access decisions. Avoid committing real policies containing sensitive identifiers.
+
+## Development and tests
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+The suite covers detection, input validation, conditions and deny context,
+complements, output formats, CLI exit codes, and the compatibility entry point.
+GitHub Actions runs it on Python 3.10 and 3.12.
+
+```text
+analyzer.py                  Reusable analysis functions and CLI
+examples/analyzer.py         Compatibility entry point
+examples/broad_policy.json   All actions and resources
+examples/pattern_policy.json Service patterns, conditions, and deny example
+examples/scoped_policy.json  Specific action and resource example
+tests/test_analyzer.py       Standard-library unit and CLI tests
+docs/learning-notes.md       Design decisions and learning prompts
+```
 
 ## Development process
 
-Developed step by step with AI assistance.
-My contributions and learning notes will be documented
-as the project progresses.
+Developed with AI assistance. See [learning notes](docs/learning-notes.md) for
+implementation decisions and exercises. Personal contributions and conclusions
+should be recorded by the learner; generated notes do not claim work or learning
+on their behalf.
