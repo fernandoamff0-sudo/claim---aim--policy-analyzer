@@ -1,0 +1,18 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ServiceActions",
+      "Effect": "Allow",
+      "Action": ["s3:*", "iam:Get*"],
+      "Resource": "*",
+      "Condition": {"Bool": {"aws:SecureTransport": "true"}}
+    },
+    {
+      "Sid": "DenyAll",
+      "Effect": "Deny",
+      "Action": "*",
+      "Resource": "*"
+    }
+  ]
+}
