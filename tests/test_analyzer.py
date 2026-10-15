@@ -29,7 +29,7 @@ class AnalysisTests(unittest.TestCase):
 
     def test_specific_policy(self):
         self.assertEqual(analyze_policy(policy(Action="s3:GetObject", Resource="arn:aws:s3:::bucket/file")), [])
-        self.assertIn("does not establish", format_report([]))
+        self.assertIn("no garantiza", format_report([]))
 
     def test_single_statement_and_resource_list(self):
         document = policy(Resource=["arn:aws:s3:::bucket", "*"])
@@ -40,8 +40,8 @@ class AnalysisTests(unittest.TestCase):
         findings = analyze_policy(policy(Effect="Deny", Condition={"Bool": {"aws:SecureTransport": "false"}}))
         self.assertTrue(all(f.effect == "Deny" and f.conditional for f in findings))
         report = format_report(findings)
-        self.assertIn("not a permission grant", report)
-        self.assertIn("not evaluated", report)
+        self.assertIn("no concede permisos", report)
+        self.assertIn("no se evalúan", report)
 
     def test_complements_are_not_positive_wildcards(self):
         document = {"Statement": {"Effect": "Allow", "NotAction": "iam:*", "NotResource": "*"}}
@@ -89,7 +89,7 @@ class CLITests(unittest.TestCase):
     def test_no_findings_exit_code(self):
         result = self.run_cli(ROOT / "examples/scoped_policy.json", "--fail-on-findings")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("No targeted patterns", result.stdout)
+        self.assertIn("No se encontraron los patrones", result.stdout)
 
     def test_errors_are_clean(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -119,8 +119,14 @@ class CLITests(unittest.TestCase):
         self.assertEqual({f["effect"] for f in findings}, {"Allow", "Deny"})
 
     def test_help_and_missing_argument(self):
-        self.assertEqual(self.run_cli("--help").returncode, 0)
-        self.assertEqual(self.run_cli().returncode, 2)
+        result = self.run_cli("--help")
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("uso:", result.stdout)
+        self.assertIn("opciones:", result.stdout)
+        self.assertIn("política IAM", result.stdout)
+        result = self.run_cli()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("argumentos obligatorios", result.stderr)
 
 
 if __name__ == "__main__":

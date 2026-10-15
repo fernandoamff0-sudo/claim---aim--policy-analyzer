@@ -1,4 +1,4 @@
-"""Compatibility entry point: analyze the bundled example by default."""
+"""Punto de entrada compatible: analiza la política de ejemplo de forma predeterminada."""
 
 from pathlib import Path
 import sys
